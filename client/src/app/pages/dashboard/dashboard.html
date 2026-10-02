@@ -1,0 +1,35 @@
+<div class="dashboard-page">
+  <header class="top-bar">
+    <div class="brand">
+      <h1>Fabulari</h1>
+      <p>where communities meet</p>
+    </div>
+
+    <div class="account">
+      <span>{{ auth.currentUser()?.username }}</span>
+      <button
+        type="button"
+        (click)="signOut()"
+        [disabled]="isSigningOut"
+      >
+        {{ isSigningOut ? 'Signing out…' : 'Sign out' }}
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <h2>Welcome, {{ auth.currentUser()?.username }}</h2>
+    <p>Select a group to explore its chat rooms.</p>
+
+    @if (errorMessage) {
+      <p class="error-message" role="alert">
+        {{ errorMessage }}
+      </p>
+    }
+
+    <section aria-labelledby="groups-heading">
+      <h3 id="groups-heading">My groups</h3>
+      <p>Group membership will be connected next.</p>
+    </section>
+  </main>
+</div>
