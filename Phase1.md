@@ -1,8 +1,8 @@
 # Fabulari — Phase 1
 
-- **Name:** [Your full name]
-- **Student number:** [Your s-number]
-- **Workshop time:** [Your workshop day and time]
+- **Name:** [Tariro Kandeya]
+- **Student number:** [s5373405]
+- **Workshop time:** [GC Thursday @1100]
 
 ## 1. Project Overview
 
@@ -22,20 +22,62 @@ in [Requirements](docs/requirements.md).
 
 ## 3. Git Strategy
 
-To be documented.
+The project uses a private GitHub repository:
+
+https://github.com/TarieBeverly/fabulari
+
+The main branch stores stable project milestones. Feature branches
+will be used for individual implementation tasks and merged into
+main after checking that the changes work.
+
+Commits are made for meaningful changes with descriptive messages.
+Changes are pushed regularly to preserve progress online.
+
+Wireframes and storyboards were committed and pushed before
+application coding began. The teaching staff member will be
+added as a collaborator for marking.
 
 ## 4. Data Structures
 
-To be documented.
+The proposed data structures are documented in
+[Data Structures](docs/data-structures.md).
+
+Phase 1 uses a server-side JSON file containing arrays of users,
+groups, channels and requests. Unique IDs connect related records.
+
+Group administration permissions are determined by each group's
+adminIds. Password hashes are stored on the server and excluded
+from responses sent to the frontend.
 
 ## 5. Angular Architecture
 
-To be documented.
+The proposed frontend structure is documented in
+[Angular Architecture](docs/angular-architecture.md).
+
+Components provide the login, dashboard, chat and administration
+interfaces. Shared services communicate with the Express server
+using HttpClient, while models describe the application data.
+
+Route guards control access to protected screens. The server
+independently checks permissions for protected actions.
+
+Phase 1 displays mock chat messages.
 
 ## 6. Proposed Server Endpoints
 
-To be documented.
+The proposed server endpoints are documented in
+[API Endpoints](docs/api-endpoints.md).
 
+The API covers authentication, users, groups, membership,
+chat rooms and administrative requests.
+
+The Express server validates input and permissions before
+saving changes to the Phase 1 JSON file. Group creation,
+group deletion and account deletion follow the required
+request workflows.
+
+Not every proposed endpoint will be implemented in Phase 1.
+Functions outside the required prototype scope may use mock data.
 ## 7. Design Documents
 The proposed screen layouts and user journeys are documented in:
 
