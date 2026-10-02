@@ -37,6 +37,14 @@ To be documented.
 To be documented.
 
 ## 7. Design Documents
+The proposed screen layouts and user journeys are documented in:
 
-Storyboards and wireframes will be stored in `docs/design/`
-and committed and pushed to GitHub before application coding begins.
+- [Wireframes](docs/design/wireframes.md)
+- [Storyboard](docs/design/storyboard.md)
+
+The designs cover login, the user dashboard, chat rooms,
+Group Admin controls and Super Admin request management.
+They include responsive layouts and accessibility considerations.
+
+These documents will be committed and pushed to GitHub before
+application coding begins.
