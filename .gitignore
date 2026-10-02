@@ -1,0 +1,19 @@
+# Installed dependencies
+node_modules/
+
+# Generated builds and Angular cache
+dist/
+.angular/
+coverage/
+
+# Local environment settings
+.env
+.env.*
+!.env.example
+
+# Log files
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db

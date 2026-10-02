@@ -1,0 +1,33 @@
+{
+  "users": [
+    {
+      "id": "a4d8553b-5bf7-420e-9930-d8cbee80ca4d",
+      "username": "superadmin",
+      "passwordHash": "3db18aa66ed279671a13dd8156b33313:ec706c686478ba7a019299bbcf0d8f179b2b7af24a147cc4bfcfc72a589fd79176a711876cfef21b92514f9813e63bdcd89211d33c4542686eda022c05e6b193",
+      "roles": [
+        "User",
+        "Super Admin"
+      ]
+    },
+    {
+      "id": "cd096d2d-6b73-4761-9149-2da630da50dd",
+      "username": "groupadmin",
+      "passwordHash": "6173800a04ff46d690044c9aa63de79d:b057bb541a11539bf0dbbd57f4fd65fbd728d0728edb3fadef3795b106aed1c9aec31cb652c39ca012d9d78a3a2d2985a18c900d47fd77b85767403529c91ebf",
+      "roles": [
+        "User",
+        "Group Admin"
+      ]
+    },
+    {
+      "id": "956f969e-d2aa-4597-b4b0-66ee875d69de",
+      "username": "demo",
+      "passwordHash": "216ff28aae937443fb581f43af88fd7c:82c6c89e2cc2866f34bf3575129bb3d783c217e27b05bb90712e20014cb7353b4eb68d124b7512726dba1d290146b37c794346529aea07333cde66a24e072c1a",
+      "roles": [
+        "User"
+      ]
+    }
+  ],
+  "groups": [],
+  "channels": [],
+  "requests": []
+}
