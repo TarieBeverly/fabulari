@@ -17,3 +17,8 @@ coverage/
 # Operating system files
 .DS_Store
 Thumbs.db
+# Local MongoDB data and downloaded server binary
+server/.mongo/
+
+# Uploaded profile and chat images
+server/uploads/

@@ -1,4 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { BACKEND_URL } from '../../services/backend';
+import { ChatService, ChatMessage, Participant } from '../../services/chat.service';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
@@ -6,8 +8,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { ApiService, State, Group, Channel, AdminRequest } from '../../services/api.service';
 @Component({ selector: 'app-dashboard', standalone: true, imports: [FormsModule, DatePipe], templateUrl: './dashboard.html', styleUrl: './dashboard.css' })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
+  private readonly chat = inject(ChatService);
+  participants: Participant[] = []; chatNotice = ''; sending = false;
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   state: State | null = null;
@@ -19,7 +23,10 @@ export class Dashboard implements OnInit {
   profileForm = { firstName: '', lastName: '', email: '', dateOfBirth: '', themeColour: '', password: '' };
   userForm = { username: '', password: '', firstName: '', lastName: '', email: '', dateOfBirth: '' };
   reason = ''; targetId = ''; promoteId = ''; assignmentUserId = ''; assignmentRoomId = '';
-  room: Channel | null = null; message = ''; chatMessages: { id: number; author: string; text: string; mine: boolean; time: string; image?: string }[] = []; nextMessage = 1;
+  room: Channel | null = null; message = ''; chatMessages: ChatMessage[] = [];
+  ngOnDestroy(): void { this.chat.disconnect(); }
+  closeRoom(): void { this.chat.leave(); this.room = null; this.chatMessages = []; this.participants = []; }
+  mediaUrl(value?: string): string { return value?.startsWith('/api/media/') ? BACKEND_URL + value : value || ''; }
   ngOnInit(): void { this.refresh(); }
   get superAdmin(): boolean { return !!this.state?.user.roles.includes('Super Admin'); }
   get selected(): Group | undefined { return this.state?.groups.find(g => g.id === this.selectedId); }
@@ -41,7 +48,7 @@ export class Dashboard implements OnInit {
     if (this.busy) return; this.busy = true; this.error = ''; this.notice = '';
     this.api.send(method, path, body).subscribe({ next: () => { this.busy = false; this.notice = message; after?.(); this.refresh(); }, error: e => this.handleError(e) });
   }
-  select(group: Group): void { this.selectedId = group.id; this.room = null; this.chatMessages = []; this.groupForm = { name: group.name, description: group.description, themeColour: group.themeColour, ageLimit: group.ageLimit }; this.resetRoom(); this.reason = ''; this.targetId = ''; }
+  select(group: Group): void { this.closeRoom(); this.selectedId = group.id; this.groupForm = { name: group.name, description: group.description, themeColour: group.themeColour, ageLimit: group.ageLimit }; this.resetRoom(); this.reason = ''; this.targetId = ''; }
   username(id: string | null): string { return this.state?.users.find(u => u.id === id)?.username || 'Deleted user'; }
   label(type: string): string { return ({ groupCreation: 'Create group', groupJoin: 'Join group', channelCreation: 'Create room', banUser: 'Ban member', groupDeletion: 'Delete group', accountDeletion: 'Delete account' } as Record<string, string>)[type] || type; }
   canReview(r: AdminRequest): boolean {
@@ -80,14 +87,35 @@ export class Dashboard implements OnInit {
   }
   deleteAccount(): void {
     if (!confirm('Permanently delete your account? This cannot be undone.')) return;
-    this.api.send('DELETE', '/profile').subscribe({ next: () => { this.auth.currentUser.set(null); void this.router.navigate(['/login']); }, error: e => this.handleError(e) });
+    this.api.send('DELETE', '/profile').subscribe({ next: () => { this.chat.disconnect(); this.auth.currentUser.set(null); void this.router.navigate(['/login']); }, error: e => this.handleError(e) });
   }
-  signOut(): void { this.auth.logout().subscribe({ next: () => void this.router.navigate(['/login']), error: e => this.handleError(e) }); }
-  openRoom(c: Channel): void {
+  signOut(): void { this.chat.disconnect(); this.auth.logout().subscribe({ next: () => void this.router.navigate(['/login']), error: e => this.handleError(e) }); }
+  async openRoom(c: Channel): Promise<void> {
+    if (this.room?.id === c.id) return;
     this.error = '';
-    this.api.send('GET', `/channels/${c.id}/preview`).subscribe({ next: () => { this.room = c; this.message = ''; this.chatMessages = ['Welcome to the room.', 'This is a Phase 1 chat preview.', 'Group and room management save to JSON.', 'Live messages and presence come in Phase 2.', 'Say hello to try the local interface.'].map(text => ({ id: this.nextMessage++, author: 'Preview', text, mine: false, time: new Date().toISOString() })); }, error: e => this.handleError(e) });
+    this.chat.connect(m => { if (this.room) this.chatMessages = [...this.chatMessages, { ...m, mine: m.authorId === this.state?.user.id }]; }, p => this.participants = p, s => this.chatNotice = s, s => { this.room = null; this.chatMessages = []; this.participants = []; this.error = s; }, () => this.refresh(), id => this.chatMessages = this.chatMessages.filter(m => m.id !== id), ids => this.chatMessages = this.chatMessages.filter(m => ids.includes(m.authorId)));
+    try {
+      const response = await this.chat.request('room:join', { channelId: c.id });
+      this.room = c; this.message = ''; this.chatNotice = '';
+      this.chatMessages = response.messages.map((m: ChatMessage) => ({ ...m, mine: m.authorId === this.state?.user.id }));
+      this.participants = response.participants;
+    } catch (e) { this.error = (e as Error).message; }
   }
-  sendMessage(): void { if (!this.message.trim()) return; this.chatMessages.push({ id: this.nextMessage++, author: this.state!.user.username, text: this.message.trim(), mine: true, time: new Date().toISOString() }); this.message = ''; }
-  deleteMessage(id: number): void { if (confirm('Delete this local preview message?')) this.chatMessages = this.chatMessages.filter(m => m.id !== id); }
-  previewImage(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return; if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 2097152) { this.error = 'Choose a PNG, JPEG or GIF up to 2 MB.'; return; } const reader = new FileReader(); reader.onload = () => this.chatMessages.push({ id: this.nextMessage++, author: this.state!.user.username, text: '', mine: true, image: reader.result as string, time: new Date().toISOString() }); reader.readAsDataURL(file); }
+  async sendMessage(image?: string): Promise<void> {
+    if (this.sending || (!this.message.trim() && !image)) return;
+    this.sending = true; this.error = '';
+    try { await this.chat.request('message:send', { text: this.message.trim(), image }); this.message = ''; }
+    catch (e) { this.error = (e as Error).message; }
+    finally { this.sending = false; }
+  }
+  async deleteMessage(id: string): Promise<void> {
+    if (!confirm('Delete this message for everyone in the room?')) return;
+    try { await this.chat.request('message:delete', { id }); } catch (e) { this.error = (e as Error).message; }
+  }
+  previewImage(event: Event): void {
+    const input = event.target as HTMLInputElement, file = input.files?.[0]; if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 2097152) { this.error = 'Choose a PNG, JPEG or GIF up to 2 MB.'; input.value = ''; return; }
+    const reader = new FileReader(); reader.onload = () => { void this.sendMessage(reader.result as string); input.value = ''; }; reader.readAsDataURL(file);
+  }
 }
+

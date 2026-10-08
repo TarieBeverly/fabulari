@@ -1,6 +1,6 @@
 const { readDatabase } = require('./storage');
-function requireAuth(req, res, next) {
-  const user = readDatabase().users.find(u => u.id === req.session?.userId);
+async function requireAuth(req, res, next) {
+  const user = (await readDatabase()).users.find(u => u.id === req.session?.userId);
   if (!user) return res.status(401).json({ message: 'Please sign in.' });
   req.currentUser = user; next();
 }

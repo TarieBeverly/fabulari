@@ -1,3 +1,4 @@
+import { BACKEND_URL } from './backend';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 export interface Profile { id: string; username: string; roles: string[]; firstName: string; lastName: string; email: string; dateOfBirth: string; themeColour: string; avatar: string; }
@@ -9,7 +10,7 @@ export interface State { user: Profile; groups: Group[]; channels: Channel[]; us
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly base = 'http://localhost:3000/api';
+  private readonly base = BACKEND_URL + '/api';
   state() { return this.http.get<State>(this.base + '/state', { withCredentials: true }); }
   send(method: string, path: string, body: unknown = {}) { return this.http.request<{ message?: string }>(method, this.base + path, { body, withCredentials: true }); }
 }

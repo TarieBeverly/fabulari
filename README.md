@@ -1,3 +1,9 @@
+# Fabulari
+
+The active codex/phase2 branch uses Angular, Express, MongoDB and Socket.IO. Start with [Phase 2 startup](docs/phase2-startup.md) and [Phase 2 report](Phase2.md).
+
+Phase 1 is preserved at commit 5b7c152. Its report and PDF describe the JSON prototype and mock chat at that checkpoint. The instructions below are retained as historical Phase 1 documentation; use the Phase 2 startup guide for the active branch.
+
 # Fabulari — Phase 1
 
 **Student:** Tariro Kandeya  

@@ -1,3 +1,4 @@
+import { BACKEND_URL } from './backend';
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
@@ -17,7 +18,7 @@ interface AuthResponse {
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:3000/api/auth';
+  private readonly apiUrl = BACKEND_URL + '/api/auth';
 
   readonly currentUser = signal<User | null>(null);
 

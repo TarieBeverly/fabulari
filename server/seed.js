@@ -1,7 +1,8 @@
 const { randomUUID } = require('node:crypto');
 const { readDatabase, writeDatabase } = require('./storage');
 const { hashPassword } = require('./passwords');
-const db = readDatabase();
+async function main() {
+const db = await readDatabase();
 for (const [username, password, roles] of [
   ['superadmin', 'SuperDemo123!', ['Super Admin']],
   ['groupadmin', 'GroupDemo123!', ['User', 'Group Admin']],
@@ -28,5 +29,9 @@ if (!db.groups.some(g => g.demoFixture)) {
     console.log('Added Photography sample group and rooms.');
   }
 }
-writeDatabase(db);
+await writeDatabase(db);
 console.log('Demo setup complete. Existing accounts and passwords were preserved.');
+
+await require('./storage').closeDatabase();
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });
