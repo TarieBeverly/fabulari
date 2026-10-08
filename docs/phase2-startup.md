@@ -33,3 +33,5 @@ Keep .env.https, server/.certs and private keys out of Git. Each machine generat
 Run `npm run test:https` in server after building the client, with MongoDB running. All 14 checks passed on 8 October 2026. The tests use a unique test database and temporary uploads/certificate directory, remove their own data, and never modify the application database or Windows trust.
 
 Checks verify rejection of an untrusted certificate, TLS 1.2 or later, the production Angular page/assets, Secure login cookies, certificate-verified WSS chat, images, presence, five-message persistence, deletions, live permission changes and logout. Certificate validation stays enabled throughout. The original HTTP integration suite still passes all 12 checks.
+
+Edge browser verification on 8 October 2026: the approved localhost certificate was trusted, the browser reported "Connection is secure", and demo login opened the HTTPS dashboard. Full secure room workflows were verified by the automated suite.

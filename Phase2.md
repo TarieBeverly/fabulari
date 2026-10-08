@@ -73,7 +73,7 @@ Verification completed on 8 October 2026:
   live delivery in both directions, live message deletion, image
   sharing, participant departure updates and logout protection passed.
 
-Local HTTPS application testing completed: all 14 checks passed, including verified TLS certificates, secure session cookies, production Angular assets, encrypted WebSocket text/images, permission changes and logout. Certificate verification remained enabled. Browser trust/HTTPS walkthrough is a separate check; public hosting has not been tested.
+Local HTTPS application testing completed: all 14 checks passed, including verified TLS certificates, secure session cookies, production Angular assets, encrypted WebSocket text/images, permission changes and logout. Certificate verification remained enabled. The dedicated localhost certificate was trusted with student approval. Edge reported "Connection is secure" and demo sign-in opened the HTTPS dashboard. Secure room workflows passed automated tests; browser room-button automation was limited by the computer tool window-coordinate error. Public hosting has not been tested.
 
 ## Running and remaining checks
 
@@ -82,4 +82,4 @@ See [Phase 2 startup](docs/phase2-startup.md). HTTP localhost is the development
 ## Dependency and deployment notes
 
 The server and production client dependency audits report zero vulnerabilities. Compatible development-tool fixes were applied. The remaining audit findings concern the Karma development test-tool chain; a forced downgrade was not applied. HTTPS startup is implemented and automated local deployment checks pass. Browser use requires trusting the local certificate or supplying a certificate already trusted by the browser. The production build and browser walkthrough passed on 8 October 2026.
-Local HTTPS deployment passed automated testing on 8 October 2026; browser verification and public hosting are distinct from these automated checks.
+Local HTTPS deployment passed automated testing on 8 October 2026; Edge certificate trust and secure sign-in also passed; public hosting has not been tested.
