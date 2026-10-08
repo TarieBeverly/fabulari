@@ -66,3 +66,13 @@ These sequences describe the planned interactions.
 Request processing may use mock data in Phase 1.
 Basic login and the required creation, assignment and JSON
 persistence functions must work in the Phase 1 prototype.
+
+## Implementation alignment
+
+The original pre-coding design above is retained as evidence. The finished Phase 1
+prototype uses dashboard tabs for community browsing, requests, profile, users and logs.
+Selecting a group shows its rooms and collapsible administration forms. Registration
+collects date of birth, names and email. Request approval communicates status within
+the Requests tab. The requester of an approved new group becomes its Group Admin,
+as confirmed in the July 22 briefing. Super Admin accounts have administrative
+screens only. See ../requirements.md for source precedence and Phase 1 mock scope.

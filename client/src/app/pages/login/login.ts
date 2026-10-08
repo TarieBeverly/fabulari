@@ -1,49 +1,23 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
-
-@Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [FormsModule],
-  templateUrl: './login.html',
-  styleUrl: './login.css'
-})
-export class Login {
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { AuthService } from '../../services/auth.service';
+@Component({ selector: 'app-login', standalone: true, imports: [FormsModule], templateUrl: './login.html', styleUrl: './login.css' })
+export class Login implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-
-  username = '';
-  password = '';
-  errorMessage = '';
-  isSubmitting = false;
-
+  private readonly http = inject(HttpClient);
+  username = ''; password = ''; errorMessage = ''; notice = ''; isSubmitting = false; register = false; bootstrap = false;
+  firstName = ''; lastName = ''; email = ''; dateOfBirth = '';
+  ngOnInit(): void { this.http.get<{ required: boolean }>('http://localhost:3000/api/auth/bootstrap').subscribe({ next: r => { this.bootstrap = r.required; this.register = r.required; }, error: () => this.errorMessage = 'Cannot reach the backend. Start the Express server.' }); }
   onSubmit(): void {
-    if (this.isSubmitting) return;
-
-    this.errorMessage = '';
-
-    if (!this.username.trim() || !this.password) {
-      this.errorMessage = 'Please enter your username and password.';
-      return;
-    }
-
+    if (this.isSubmitting) return; this.errorMessage = ''; this.notice = '';
+    if (!this.username.trim() || !this.password) { this.errorMessage = 'Please enter your username and password.'; return; }
     this.isSubmitting = true;
-
-    this.auth.login(this.username.trim(), this.password).subscribe({
-      next: (response) => {
-        this.isSubmitting = false;
-        this.password = '';
-       void this.router.navigate(['/dashboard']);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.isSubmitting = false;
-        this.errorMessage = error.status === 0
-          ? 'Cannot connect to the server. Check that the backend is running.'
-          : error.error?.message || 'Unable to sign in. Please try again.';
-      }
-    });
+    if (this.register) {
+      this.http.post('http://localhost:3000/api/auth/' + (this.bootstrap ? 'bootstrap' : 'register'), { username: this.username.trim(), password: this.password, firstName: this.firstName, lastName: this.lastName, email: this.email, dateOfBirth: this.dateOfBirth }).subscribe({ next: () => { this.isSubmitting = false; this.register = false; this.bootstrap = false; this.password = ''; this.notice = 'Account created. Sign in with your new credentials.'; }, error: e => this.failed(e) });
+    } else this.auth.login(this.username.trim(), this.password).subscribe({ next: () => { this.isSubmitting = false; this.password = ''; void this.router.navigate(['/dashboard']); }, error: e => this.failed(e) });
   }
+  failed(e: HttpErrorResponse): void { this.isSubmitting = false; this.errorMessage = e.status === 0 ? 'Cannot connect to the backend. Check that the server is running.' : e.error?.message || 'Unable to complete this action.'; }
 }

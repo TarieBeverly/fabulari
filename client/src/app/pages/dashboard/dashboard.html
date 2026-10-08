@@ -1,35 +1,86 @@
 <div class="dashboard-page">
   <header class="top-bar">
-    <div class="brand">
-      <h1>Fabulari</h1>
-      <p>where communities meet</p>
-    </div>
-
+    <a class="brand" href="/dashboard"><img src="/fabulari-logo.png" alt="Fabulari — where communities meet" /></a>
     <div class="account">
-      <span>{{ auth.currentUser()?.username }}</span>
-      <button
-        type="button"
-        (click)="signOut()"
-        [disabled]="isSigningOut"
-      >
-        {{ isSigningOut ? 'Signing out…' : 'Sign out' }}
-      </button>
+      @if (state?.user?.avatar) { <img class="avatar" [src]="state!.user.avatar" alt="Your profile" /> }
+      <span>{{ state?.user?.username }}<small>{{ superAdmin ? 'Super Admin' : 'Community member' }}</small></span>
+      <button class="secondary" (click)="signOut()">Sign out</button>
     </div>
   </header>
-
+  <nav class="tabs" aria-label="Main navigation">
+    <button [class.active]="tab === 'groups'" (click)="tab = 'groups'">{{ superAdmin ? 'Groups overview' : 'Communities' }}</button>
+    @if (!superAdmin) { <button [class.active]="tab === 'new-group'" (click)="tab = 'new-group'; groupForm = { name: '', description: '', themeColour: '#4da6ff', ageLimit: 0 }">Request a group</button> }
+    <button [class.active]="tab === 'requests'" (click)="tab = 'requests'">Requests <span class="count">{{ pendingCount }}</span></button>
+    @if (superAdmin) { <button [class.active]="tab === 'users'" (click)="tab = 'users'">Users</button> }
+    <button [class.active]="tab === 'profile'" (click)="tab = 'profile'">Profile</button>
+    @if (superAdmin || state?.user?.roles?.includes('Group Admin')) { <button [class.active]="tab === 'logs'" (click)="tab = 'logs'">Activity log</button> }
+    <button class="refresh" [disabled]="loading || busy" (click)="refresh()">Refresh</button>
+  </nav>
   <main>
-    <h2>Welcome, {{ auth.currentUser()?.username }}</h2>
-    <p>Select a group to explore its chat rooms.</p>
-
-    @if (errorMessage) {
-      <p class="error-message" role="alert">
-        {{ errorMessage }}
-      </p>
+    @if (error) { <p class="error-message" role="alert">{{ error }}</p> }
+    @if (notice) { <p class="success-message" role="status">{{ notice }}</p> }
+    @if (loading) { <p role="status">Loading your workspace…</p> }
+    @if (state) {
+      @if (tab === 'groups') {
+        <div class="page-heading"><div><p class="eyebrow">YOUR COMMUNITY SPACE</p><h1>{{ superAdmin ? 'Groups overview' : 'Find your people.' }}</h1><p>{{ superAdmin ? 'Review communities and handle administrative requests. Super Admin accounts do not chat.' : 'Browse communities, request membership and open a conversation.' }}</p></div></div>
+        <div class="filters"><label class="grow">Search communities<input [(ngModel)]="search" placeholder="Search by name or description" /></label>@if (!superAdmin) { <label class="check"><input type="checkbox" [(ngModel)]="onlyMine" /> My groups only</label> }</div>
+        <div class="workspace">
+          <aside class="group-list" aria-label="Communities">
+            @for (g of groups; track g.id) {
+              <button class="group-card" [class.selected]="selectedId === g.id" (click)="select(g)">
+                <span class="group-dot" [style.background]="state.user.themeColour || g.themeColour">{{ g.name.slice(0, 1).toUpperCase() }}</span>
+                <span><strong>{{ g.name }}</strong><small>{{ g.admin ? 'Group Admin' : g.banned ? 'Banned' : g.member ? 'Member' : 'Open to requests' }} · {{ g.ageLimit }}+</small></span>
+              </button>
+            } @empty { <p class="empty">No groups found. Request a new group to get started.</p> }
+          </aside>
+          <section class="content-panel">
+            @if (selected; as g) {
+              <div class="section-heading"><div><p class="eyebrow">{{ g.admin ? 'YOU ADMINISTER THIS GROUP' : 'COMMUNITY' }}</p><h2>{{ g.name }}</h2><p>{{ g.description }}</p><span class="badge">Minimum age {{ g.ageLimit }} · {{ g.memberIds.length }} members</span></div></div>
+              @if (!superAdmin && !g.member && !g.banned) { <button [disabled]="busy" (click)="join(g)">Request to join</button> }
+              @if (g.banned) { <p class="error-message">You are banned from this group.</p> }
+              @if (g.member) {
+                @if (!g.admin) { <button class="secondary" [disabled]="busy" (click)="leaveGroup()">Leave group</button> }
+                <h3>Chat rooms</h3>
+                <div class="room-list">
+                  @for (c of channels; track c.id) {
+                    <article class="room-card"><div><h4>{{ c.name }}</h4><p>{{ c.description }}</p><small>{{ c.ageLimit }}+ · {{ c.memberIds.length }} assigned</small></div><div class="actions"><button (click)="openRoom(c)">Open preview</button>@if (g.admin) { <button class="secondary" (click)="editRoom(c)">Edit</button><button class="danger" [disabled]="busy" (click)="deleteRoom(c)">Delete</button> }</div></article>
+                  } @empty { <p>No rooms yet. Request a room below.</p> }
+                </div>
+                @if (room; as c) {
+                  <section class="chat"><div class="section-heading"><h3>{{ c.name }}</h3><button class="secondary" (click)="room = null; chatMessages = []">Leave preview</button></div><p class="preview-label">Phase 1 local preview · messages and images are not shared or saved · participant presence is mocked.</p>
+                    <div class="messages" role="log" aria-label="Local preview conversation">@for (m of chatMessages; track m.id) { <article [class.mine]="m.mine"><strong>{{ m.author }}</strong><small>{{ m.time | date:'shortTime' }}</small><p>{{ m.text }}</p>@if (m.image) { <img [src]="m.image" alt="Shared preview image" /> }@if (m.mine) { <button class="text-button" (click)="deleteMessage(m.id)">Delete</button> }</article> }</div>
+                    <form class="composer" (ngSubmit)="sendMessage()"><label class="grow">Message<input name="message" [(ngModel)]="message" placeholder="Write a local preview message" /></label><button type="submit">Send</button></form><label class="file-label">Preview image (PNG, JPEG or GIF, up to 2 MB)<input type="file" accept="image/png,image/jpeg,image/gif" (change)="previewImage($event)" /></label>
+                  </section>
+                }
+                <details [open]="!!editingRoomId"><summary>{{ editingRoomId ? 'Edit room' : g.admin ? 'Create a room / request a room' : 'Request a chat room' }}</summary><form class="form-grid" (ngSubmit)="g.admin ? saveRoom() : submitRequest('channelCreation')"><label>Room name<input name="roomName" [(ngModel)]="roomForm.name" required maxlength="30" /></label><label>Minimum age<input name="roomAge" [(ngModel)]="roomForm.ageLimit" type="number" min="0" max="120" required /></label><label class="full">Description<textarea name="roomDescription" [(ngModel)]="roomForm.description" maxlength="250"></textarea></label><label>Colour<input name="roomColour" type="color" [(ngModel)]="roomForm.themeColour" /></label><div class="form-actions"><button [disabled]="busy">{{ g.admin ? 'Save room' : 'Send request' }}</button>@if (editingRoomId) { <button type="button" class="secondary" (click)="resetRoom()">Cancel edit</button> }</div></form></details>
+                <details><summary>Members and moderation</summary><ul class="member-list">@for (u of members; track u.id) { <li><span>{{ u.username }} <small>{{ g.adminIds.includes(u.id) ? 'Group Admin' : 'Member' }}</small></span>@if (g.admin && !g.adminIds.includes(u.id) && u.id !== state.user.id) { <button class="secondary" [disabled]="busy" (click)="removeMember(u.id)">Remove</button> }</li> }</ul>
+                  <form class="form-grid" (ngSubmit)="submitRequest('banUser')"><label>Member<select name="target" [(ngModel)]="targetId" required><option value="">Select a member</option>@for (u of moderationTargets; track u.id) { <option [value]="u.id">{{ u.username }}</option> }</select></label><label>Reason<input name="reason" [(ngModel)]="reason" required maxlength="500" /></label><button [disabled]="busy || !targetId || !reason.trim()">Request group ban</button>@if (g.admin) { <button type="button" class="danger" [disabled]="busy || !targetId || !reason.trim()" (click)="submitRequest('accountDeletion')">Request account deletion</button> }</form>
+                </details>
+                @if (g.admin) {
+                  <details><summary>Group administration</summary><form class="form-grid" (ngSubmit)="saveGroup()"><label>Name<input name="groupName" [(ngModel)]="groupForm.name" required maxlength="30" /></label><label>Minimum age<input name="groupAge" type="number" [(ngModel)]="groupForm.ageLimit" min="0" max="120" required /></label><label class="full">Description<textarea name="groupDescription" [(ngModel)]="groupForm.description" maxlength="250"></textarea></label><label>Colour<input name="groupColour" type="color" [(ngModel)]="groupForm.themeColour" /></label><button [disabled]="busy">Save group details</button></form>
+                    <h4>Appoint another administrator</h4><form class="inline-form" (ngSubmit)="promote()"><label class="grow">Group member<select name="promoteId" [(ngModel)]="promoteId" required><option value="">Select member</option>@for (u of members; track u.id) { <option [value]="u.id">{{ u.username }}</option> }</select></label><button [disabled]="busy || !promoteId">Appoint admin</button></form><button class="secondary" [disabled]="busy" (click)="stepDown()">Step down as admin</button>
+                    <h4>Room assignment</h4><form class="form-grid" (ngSubmit)="assignRoom()"><label>Room<select name="assignmentRoom" [(ngModel)]="assignmentRoomId" required><option value="">Select room</option>@for (c of channels; track c.id) { <option [value]="c.id">{{ c.name }}</option> }</select></label><label>Member<select name="assignmentUser" [(ngModel)]="assignmentUserId" required><option value="">Select member</option>@for (u of members; track u.id) { <option [value]="u.id">{{ u.username }}</option> }</select></label><button [disabled]="busy || !assignmentRoomId || !assignmentUserId">Assign member</button></form>
+                    <h4>Request group deletion</h4><label>Reason<input [(ngModel)]="reason" maxlength="500" /></label><button class="danger" [disabled]="busy || !reason.trim()" (click)="submitRequest('groupDeletion')">Send deletion request</button>
+                  </details>
+                }
+              }
+            } @else { <div class="empty"><h2>{{ superAdmin ? 'Select a community' : 'Welcome, ' + state.user.username }}</h2><p>Select a community on the left to see its details.</p></div> }
+          </section>
+        </div>
+      }
+      @if (tab === 'new-group' && !superAdmin) {
+        <section class="narrow card"><p class="eyebrow">BUILD A COMMUNITY</p><h1>Request a new group</h1><p>A Super Admin reviews your request. On approval, you become the group's administrator.</p><form class="form-grid" (ngSubmit)="createGroupRequest()"><label class="full">Group name<input name="newName" [(ngModel)]="groupForm.name" required maxlength="30" /></label><label class="full">Description<textarea name="newDescription" [(ngModel)]="groupForm.description" maxlength="250"></textarea></label><label>Minimum age<input name="newAge" type="number" [(ngModel)]="groupForm.ageLimit" min="0" max="120" required /></label><label>Theme colour<input name="newColour" type="color" [(ngModel)]="groupForm.themeColour" /></label><button [disabled]="busy">Send request</button></form></section>
+      }
+      @if (tab === 'requests') {
+        <h1>Requests &amp; decisions</h1><p>{{ superAdmin ? 'Review group creation, group deletion and account deletion requests.' : 'Track your requests and review requests for groups you administer.' }}</p><div class="request-grid">@for (r of state.requests.slice().reverse(); track r.id) { <article class="card"><div class="section-heading"><h3>{{ label(r.type) }}</h3><span class="badge" [class.pending]="r.status === 'pending'">{{ r.status }}</span></div><p><strong>{{ r.payload.name || r.groupName || 'System request' }}</strong></p><p>From {{ r.requesterName }} · {{ r.createdAt | date:'short' }}</p>@if (r.payload.description) { <p>{{ r.payload.description }}</p> }@if (r.payload.ageLimit !== undefined) { <p>Minimum age: {{ r.payload.ageLimit }}</p> }@if (r.targetId && ['banUser', 'accountDeletion'].includes(r.type)) { <p>Target: {{ username(r.targetId) }}</p> }@if (r.reason) { <p>Reason: {{ r.reason }}</p> }@if (canReview(r)) { <div class="actions"><button [disabled]="busy" (click)="decide(r, 'approve')">Approve</button><button class="secondary" [disabled]="busy" (click)="decide(r, 'reject')">Reject</button></div> }</article> } @empty { <p class="empty">No requests yet.</p> }</div>
+      }
+      @if (tab === 'users' && superAdmin) {
+        <h1>User directory</h1><div class="table-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Roles</th></tr></thead><tbody>@for (u of state.users; track u.id) { <tr><td>{{ u.username }}</td><td>{{ u.firstName }} {{ u.lastName }}</td><td>{{ u.roles.join(', ') }}</td></tr> }</tbody></table></div><details><summary>Create a regular user</summary><p>Users can also register from the sign-in screen.</p><form class="form-grid" (ngSubmit)="createUser()"><label>Username<input name="createUsername" [(ngModel)]="userForm.username" required maxlength="30" /></label><label>Password<input name="createPassword" type="password" [(ngModel)]="userForm.password" required minlength="8" autocomplete="new-password" /></label><label>First name<input name="createFirst" [(ngModel)]="userForm.firstName" required /></label><label>Last name<input name="createLast" [(ngModel)]="userForm.lastName" required /></label><label>Email<input name="createEmail" type="email" [(ngModel)]="userForm.email" required /></label><label>Date of birth<input name="createDob" type="date" [(ngModel)]="userForm.dateOfBirth" required /></label><button [disabled]="busy">Create user</button></form></details>
+      }
+      @if (tab === 'profile') {
+        <section class="narrow card"><h1>Your profile</h1><p>{{ state.user.username }} · {{ state.user.roles.join(', ') }}</p><form class="form-grid" (ngSubmit)="saveProfile()"><label>First name<input name="firstName" [(ngModel)]="profileForm.firstName" required maxlength="60" /></label><label>Last name<input name="lastName" [(ngModel)]="profileForm.lastName" required maxlength="60" /></label><label>Email<input name="email" type="email" [(ngModel)]="profileForm.email" required /></label><label>Date of birth<input name="dateOfBirth" type="date" [(ngModel)]="profileForm.dateOfBirth" required /></label><label>Optional theme override<input name="themeColour" [(ngModel)]="profileForm.themeColour" placeholder="#292e46 or leave blank" pattern="#[a-fA-F0-9]{6}" /></label><label>New password (optional)<input name="newPassword" type="password" [(ngModel)]="profileForm.password" autocomplete="new-password" minlength="8" /></label><button [disabled]="busy">Save profile</button></form><label class="file-label">Profile image (up to 2 MB)<input type="file" accept="image/png,image/jpeg,image/gif" (change)="avatar($event)" [disabled]="busy" /></label>@if (!superAdmin) { <hr /><h3>Delete your account</h3><p>A sole Group Admin must appoint a successor before deleting their account.</p><button class="danger" (click)="deleteAccount()">Delete my account</button> }</section>
+      }
+      @if (tab === 'logs') { <h1>Administrative activity</h1><p>The latest 100 actions visible to your role.</p><div class="table-wrap"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th></tr></thead><tbody>@for (l of state.logs; track l.id) { <tr><td>{{ l.createdAt | date:'short' }}</td><td>{{ l.actorName }}</td><td>{{ l.action }}</td><td class="identifier">{{ l.targetId }}</td></tr> } @empty { <tr><td colspan="4">No administrative actions recorded yet.</td></tr> }</tbody></table></div> }
     }
-
-    <section aria-labelledby="groups-heading">
-      <h3 id="groups-heading">My groups</h3>
-      <p>Group membership will be connected next.</p>
-    </section>
-  </main>
+  </main><footer>Fabulari · Phase 1 prototype · local chat preview</footer>
 </div>

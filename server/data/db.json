@@ -5,9 +5,14 @@
       "username": "superadmin",
       "passwordHash": "3db18aa66ed279671a13dd8156b33313:ec706c686478ba7a019299bbcf0d8f179b2b7af24a147cc4bfcfc72a589fd79176a711876cfef21b92514f9813e63bdcd89211d33c4542686eda022c05e6b193",
       "roles": [
-        "User",
         "Super Admin"
-      ]
+      ],
+      "firstName": "Superadmin",
+      "lastName": "Demo",
+      "email": "superadmin@example.test",
+      "dateOfBirth": "2000-01-01",
+      "themeColour": "",
+      "avatar": ""
     },
     {
       "id": "cd096d2d-6b73-4761-9149-2da630da50dd",
@@ -16,7 +21,13 @@
       "roles": [
         "User",
         "Group Admin"
-      ]
+      ],
+      "firstName": "Groupadmin",
+      "lastName": "Demo",
+      "email": "groupadmin@example.test",
+      "dateOfBirth": "2000-01-01",
+      "themeColour": "",
+      "avatar": ""
     },
     {
       "id": "956f969e-d2aa-4597-b4b0-66ee875d69de",
@@ -24,10 +35,88 @@
       "passwordHash": "216ff28aae937443fb581f43af88fd7c:82c6c89e2cc2866f34bf3575129bb3d783c217e27b05bb90712e20014cb7353b4eb68d124b7512726dba1d290146b37c794346529aea07333cde66a24e072c1a",
       "roles": [
         "User"
+      ],
+      "firstName": "Demo",
+      "lastName": "Demo",
+      "email": "demo@example.test",
+      "dateOfBirth": "2000-01-01",
+      "themeColour": "",
+      "avatar": ""
+    }
+  ],
+  "groups": [
+    {
+      "id": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "name": "Photography",
+      "description": "A demo community for sharing ideas, photos and creative inspiration.",
+      "themeColour": "#4da6ff",
+      "ageLimit": 0,
+      "adminIds": [
+        "cd096d2d-6b73-4761-9149-2da630da50dd"
+      ],
+      "memberIds": [
+        "cd096d2d-6b73-4761-9149-2da630da50dd",
+        "956f969e-d2aa-4597-b4b0-66ee875d69de"
+      ],
+      "bannedUserIds": [],
+      "demoFixture": true
+    }
+  ],
+  "channels": [
+    {
+      "id": "95d305fc-8d30-470f-b132-d9fd79ed1544",
+      "groupId": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "name": "General",
+      "description": "Meet the community and share your ideas.",
+      "themeColour": "#4da6ff",
+      "ageLimit": 0,
+      "memberIds": [
+        "cd096d2d-6b73-4761-9149-2da630da50dd",
+        "956f969e-d2aa-4597-b4b0-66ee875d69de"
+      ]
+    },
+    {
+      "id": "c3fd6bd7-0c50-4d58-8575-1519ed8d39a6",
+      "groupId": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "name": "Events",
+      "description": "Plan the next photo walk.",
+      "themeColour": "#4da6ff",
+      "ageLimit": 0,
+      "memberIds": [
+        "cd096d2d-6b73-4761-9149-2da630da50dd",
+        "956f969e-d2aa-4597-b4b0-66ee875d69de"
       ]
     }
   ],
-  "groups": [],
-  "channels": [],
-  "requests": []
+  "requests": [
+    {
+      "id": "93b900f1-6f1b-4076-ab1e-cfb46aba3b97",
+      "type": "groupCreation",
+      "requesterId": "cd096d2d-6b73-4761-9149-2da630da50dd",
+      "groupId": null,
+      "targetId": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "payload": {
+        "name": "Photography",
+        "description": "A demo community for sharing ideas, photos and creative inspiration.",
+        "themeColour": "#4da6ff",
+        "ageLimit": 0
+      },
+      "reason": "Sample data fixture, not a real administrative decision.",
+      "status": "approved",
+      "reviewedBy": "a4d8553b-5bf7-420e-9930-d8cbee80ca4d",
+      "createdAt": "2026-10-07T15:57:52.378Z",
+      "demoFixture": true
+    }
+  ],
+  "logs": [
+    {
+      "id": "24fb8c19-0fb1-4a40-8f38-542a909e0ac8",
+      "actorId": "a4d8553b-5bf7-420e-9930-d8cbee80ca4d",
+      "actorName": "demo seed",
+      "action": "demo.fixture.created",
+      "targetId": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "groupId": "bf101094-d94c-4436-910c-4c12b2a909b7",
+      "createdAt": "2026-10-07T15:57:52.379Z"
+    }
+  ]
 }

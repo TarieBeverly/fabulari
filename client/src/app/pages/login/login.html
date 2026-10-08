@@ -1,42 +1,19 @@
-<main class="login-page">
-  <section class="login-card" aria-labelledby="login-heading">
-    <header class="brand">
-      <h1>Fabulari</h1>
-      <p>where communities meet</p>
-    </header>
-
-    <h2 id="login-heading">Sign in</h2>
-
-    <form (ngSubmit)="onSubmit()">
-      <label for="username">Username</label>
-      <input
-        id="username"
-        name="username"
-        type="text"
-        autocomplete="username"
-        [(ngModel)]="username"
-        required
-      />
-
-      <label for="password">Password</label>
-      <input
-        id="password"
-        name="password"
-        type="password"
-        autocomplete="current-password"
-        [(ngModel)]="password"
-        required
-      />
-
-      @if (errorMessage) {
-        <p class="error-message" role="alert">
-          {{ errorMessage }}
-        </p>
-      }
-
-      <button type="submit" [disabled]="isSubmitting">
-  {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
-</button>
-    </form>
-  </section>
-</main>
+<main class="login-page"><section class="login-card" aria-labelledby="login-heading">
+  <header class="brand"><img src="/fabulari-logo.png" alt="Fabulari — where communities meet" /></header>
+  <h1 id="login-heading">{{ bootstrap ? 'Initial setup' : register ? 'Join the community' : 'Welcome back' }}</h1>
+  <p>{{ bootstrap ? 'Create the first Super Admin. This setup is disabled once an account exists.' : register ? 'Create an account, then request to join your favourite groups.' : 'Sign in to your community space.' }}</p>
+  @if (notice) { <p class="success" role="status">{{ notice }}</p> }
+  <form (ngSubmit)="onSubmit()">
+    <label for="username">Username<input id="username" name="username" [(ngModel)]="username" required maxlength="30" autocomplete="username" /></label>
+    <label for="password">Password<input id="password" name="password" type="password" [(ngModel)]="password" required [attr.minlength]="register ? 8 : null" [attr.autocomplete]="register ? 'new-password' : 'current-password'" /></label>
+    @if (register) {
+      <p class="hint">Use at least 8 characters and one uppercase letter.</p>
+      <div class="names"><label>First name<input name="firstName" [(ngModel)]="firstName" required maxlength="60" autocomplete="given-name" /></label><label>Last name<input name="lastName" [(ngModel)]="lastName" required maxlength="60" autocomplete="family-name" /></label></div>
+      <label>Email<input name="email" type="email" [(ngModel)]="email" required autocomplete="email" /></label>
+      <label>Date of birth<input name="dateOfBirth" type="date" [(ngModel)]="dateOfBirth" required autocomplete="bday" /></label>
+    }
+    @if (errorMessage) { <p class="error-message" role="alert">{{ errorMessage }}</p> }
+    <button type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Please wait…' : register ? 'Create account' : 'Sign in' }}</button>
+  </form>
+  @if (!bootstrap) { <button class="switch" type="button" [disabled]="isSubmitting" (click)="register = !register; errorMessage = ''; notice = ''">{{ register ? 'Already registered? Sign in' : 'New here? Create an account' }}</button> }
+</section></main>

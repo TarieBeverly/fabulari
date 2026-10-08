@@ -1,72 +1,41 @@
-# Fabulari — Proposed Angular Architecture
+# Fabulari — Implemented Angular Architecture
 
 ## Components
 
-| Component | Responsibility |
+| Component | Files | Responsibility |
+|---|---|---|
+| App | src/app/app.ts, app.html, app.css | Routed application shell |
+| Login | pages/login/login.ts/.html/.css | Login, registration and initial bootstrap |
+| Dashboard | pages/dashboard/dashboard.ts/.html/.css | Group browsing, room preview, administration, requests, users, profile and audit tabs |
+
+The original proposal included separate forms and administrative components. In the
+implemented Phase 1 prototype these are consolidated into dashboard sections.
+The design documents remain pre-coding evidence; this document describes actual code.
+
+## Services and models
+
+- AuthService: currentUser signal, login, logout, loadCurrentUser.
+- ApiService: state retrieval and authenticated HTTP mutations.
+- ApiService models: Profile, Group, Channel, AdminRequest, AuditLog and State.
+- HttpClient communicates with http://localhost:3000/api using session credentials.
+- Input state uses ngModel; conditional/list rendering uses Angular @if and @for.
+- Async HTTP results use RxJS observables; auth state uses an Angular signal.
+- The dashboard refreshes after mutations; Refresh retrieves decisions made in other sessions.
+
+## Routes and guard
+
+| Route | Behaviour |
 |---|---|
-| App | Main application shell and route outlet |
-| Login | Username/password form and login errors |
-| Dashboard | Group navigation and available chat rooms |
-| ChatRoom | Selected room and mock conversation |
-| GroupAdmin | Management of administered groups, rooms and members |
-| SuperAdmin | Review of administrative requests |
-| GroupForm | Creation or editing of group details |
-| ChannelForm | Creation or editing of chat room details |
-| UserForm | User creation and assignment interface |
-| RequestForm | Submission of administrative requests |
+| /login | Public sign-in, registration or first-run setup |
+| /dashboard | Protected by authGuard checking /auth/me |
+| / and unknown routes | Redirect to dashboard; guard redirects unauthenticated users to login |
 
-Component names are proposed and may change during implementation.
+Internal dashboard tabs and selected group/room are component state, not separate routes.
+The backend independently enforces all role, membership and age checks.
 
-## Services
+## Phase 1 limitations
 
-| Service | Responsibility |
-|---|---|
-| AuthService | Login, logout and current authentication state |
-| UserService | Calls to user management endpoints |
-| GroupService | Calls to group and membership endpoints |
-| ChannelService | Calls to chat room endpoints |
-| RequestService | Submission and retrieval of requests |
-
-Services use Angular HttpClient to communicate with the Express server.
-Components display data and handle interaction; services handle API calls.
-
-## Models
-
-- User: safe user details and assigned roles; excludes password hashes.
-- Group: group details and related user IDs.
-- Channel: chat room details, parent group ID and member IDs.
-- AdminRequest: request type, requester, target and status.
-- ChatMessage: mock author and message content for Phase 1.
-
-Models follow the structures in data-structures.md.
-
-## Proposed Routes
-
-| Route | Screen |
-|---|---|
-| /login | Login |
-| /dashboard | User dashboard |
-| /groups/:groupId/channels/:channelId | Chat room |
-| /admin/groups/:groupId | Group administration |
-| /super-admin | Super Admin interface |
-
-The default route redirects to the dashboard when authenticated
-or to login otherwise.
-
-## Access Control
-
-- An authentication guard restricts protected routes.
-- Administrative screens check the current user's permissions.
-- Group administration checks the selected group's adminIds.
-- The server independently validates permissions for every
-  protected action.
-
-Route guards control navigation; server checks enforce access.
-
-## State and Phase 1 Scope
-
-Angular signals hold local interface state, such as selected groups
-and loading indicators. HTTP responses are handled using observables.
-
-Phase 1 uses mock chat messages. Socket.IO integration and MongoDB
-storage are planned for Phase 2.
+Chat is one local preview at a time. Five mock messages are generated on entry, new
+text/images are local, and own-message deletion modifies the local array. Leaving
+clears messages. There is no Socket.IO service yet.
+Profile pictures and group theme overrides are implemented; real presence is not.

@@ -1,38 +1,93 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
-
-@Component({
-  selector: 'app-dashboard',
-  standalone: true,
-  templateUrl: './dashboard.html',
-  styleUrl: './dashboard.css'
-})
-export class Dashboard {
+import { ApiService, State, Group, Channel, AdminRequest } from '../../services/api.service';
+@Component({ selector: 'app-dashboard', standalone: true, imports: [FormsModule, DatePipe], templateUrl: './dashboard.html', styleUrl: './dashboard.css' })
+export class Dashboard implements OnInit {
   readonly auth = inject(AuthService);
+  private readonly api = inject(ApiService);
   private readonly router = inject(Router);
-
-  errorMessage = '';
-  isSigningOut = false;
-
-  signOut(): void {
-    if (this.isSigningOut) return;
-
-    this.errorMessage = '';
-    this.isSigningOut = true;
-
-    this.auth.logout().subscribe({
-      next: () => {
-        this.isSigningOut = false;
-        void this.router.navigate(['/login']);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.isSigningOut = false;
-        this.errorMessage = error.status === 0
-          ? 'Cannot connect to the server. Please try again.'
-          : 'Unable to sign out. Please try again.';
-      }
-    });
+  state: State | null = null;
+  tab = 'groups'; selectedId = ''; busy = false; loading = true; error = ''; notice = '';
+  search = ''; onlyMine = false;
+  groupForm = { name: '', description: '', themeColour: '#4da6ff', ageLimit: 0 };
+  roomForm = { name: '', description: '', themeColour: '#4da6ff', ageLimit: 0 };
+  editingRoomId = '';
+  profileForm = { firstName: '', lastName: '', email: '', dateOfBirth: '', themeColour: '', password: '' };
+  userForm = { username: '', password: '', firstName: '', lastName: '', email: '', dateOfBirth: '' };
+  reason = ''; targetId = ''; promoteId = ''; assignmentUserId = ''; assignmentRoomId = '';
+  room: Channel | null = null; message = ''; chatMessages: { id: number; author: string; text: string; mine: boolean; time: string; image?: string }[] = []; nextMessage = 1;
+  ngOnInit(): void { this.refresh(); }
+  get superAdmin(): boolean { return !!this.state?.user.roles.includes('Super Admin'); }
+  get selected(): Group | undefined { return this.state?.groups.find(g => g.id === this.selectedId); }
+  get groups(): Group[] { return (this.state?.groups || []).filter(g => (!this.onlyMine || g.member) && (g.name + ' ' + g.description).toLowerCase().includes(this.search.toLowerCase())); }
+  get channels(): Channel[] { return (this.state?.channels || []).filter(c => c.groupId === this.selectedId); }
+  get members() { return (this.state?.users || []).filter(u => this.selected?.memberIds.includes(u.id)); }
+  get moderationTargets() { return (this.state?.users || []).filter(u => u.id !== this.state?.user.id && (this.selected?.memberIds.includes(u.id) || this.selected?.bannedUserIds.includes(u.id))); }
+  get pendingCount(): number { return (this.state?.requests || []).filter(r => r.status === 'pending').length; }
+  refresh(): void {
+    this.loading = true;
+    this.api.state().subscribe({ next: data => {
+      this.state = data; this.auth.currentUser.set(data.user); this.loading = false;
+      this.profileForm = { firstName: data.user.firstName || '', lastName: data.user.lastName || '', email: data.user.email || '', dateOfBirth: data.user.dateOfBirth || '', themeColour: data.user.themeColour || '', password: '' };
+      if (this.selectedId && !data.groups.some(g => g.id === this.selectedId)) { this.selectedId = ''; this.room = null; }
+    }, error: e => { this.loading = false; this.handleError(e); } });
   }
+  handleError(e: HttpErrorResponse): void { this.busy = false; this.error = e.status === 0 ? 'Cannot reach the backend. Start the server and try again.' : e.error?.message || 'The action could not be completed.'; if (e.status === 401) { this.auth.currentUser.set(null); void this.router.navigate(['/login']); } }
+  action(method: string, path: string, body: unknown, message: string, after?: () => void): void {
+    if (this.busy) return; this.busy = true; this.error = ''; this.notice = '';
+    this.api.send(method, path, body).subscribe({ next: () => { this.busy = false; this.notice = message; after?.(); this.refresh(); }, error: e => this.handleError(e) });
+  }
+  select(group: Group): void { this.selectedId = group.id; this.room = null; this.chatMessages = []; this.groupForm = { name: group.name, description: group.description, themeColour: group.themeColour, ageLimit: group.ageLimit }; this.resetRoom(); this.reason = ''; this.targetId = ''; }
+  username(id: string | null): string { return this.state?.users.find(u => u.id === id)?.username || 'Deleted user'; }
+  label(type: string): string { return ({ groupCreation: 'Create group', groupJoin: 'Join group', channelCreation: 'Create room', banUser: 'Ban member', groupDeletion: 'Delete group', accountDeletion: 'Delete account' } as Record<string, string>)[type] || type; }
+  canReview(r: AdminRequest): boolean {
+    if (r.status !== 'pending') return false;
+    if (this.superAdmin) return ['groupCreation', 'groupDeletion', 'accountDeletion'].includes(r.type);
+    return ['groupJoin', 'channelCreation', 'banUser'].includes(r.type) && !!this.state?.groups.some(g => g.id === r.groupId && g.admin);
+  }
+  decide(r: AdminRequest, decision: string): void {
+    if (decision === 'approve' && ['groupDeletion', 'accountDeletion', 'banUser'].includes(r.type) && !confirm(`Approve ${this.label(r.type).toLowerCase()} for ${r.type === 'groupDeletion' ? r.groupName : this.username(r.targetId)}?`)) return;
+    this.action('POST', `/requests/${r.id}/${decision}`, {}, `Request ${decision === 'approve' ? 'approved' : 'rejected'}.`);
+  }
+  createGroupRequest(): void { this.action('POST', '/requests', { type: 'groupCreation', ...this.groupForm }, 'Group request sent to the Super Admin.', () => { this.tab = 'requests'; this.groupForm = { name: '', description: '', themeColour: '#4da6ff', ageLimit: 0 }; }); }
+  join(group: Group): void { this.action('POST', '/requests', { type: 'groupJoin', groupId: group.id }, 'Join request sent to the group administrators.'); }
+  saveGroup(): void { this.action('PATCH', `/groups/${this.selectedId}`, this.groupForm, 'Group details saved.'); }
+  submitRequest(type: string): void {
+    if (type === 'groupDeletion' && !confirm(`Request deletion of ${this.selected?.name}?`)) return;
+    this.action('POST', '/requests', { type, groupId: this.selectedId, targetId: this.targetId, reason: this.reason, ...(type === 'channelCreation' ? this.roomForm : {}) }, 'Request submitted.', () => { this.reason = ''; this.tab = 'requests'; });
+  }
+  saveRoom(): void {
+    this.action(this.editingRoomId ? 'PATCH' : 'POST', this.editingRoomId ? `/channels/${this.editingRoomId}` : `/groups/${this.selectedId}/channels`, this.roomForm, 'Room saved.', () => this.resetRoom());
+  }
+  editRoom(c: Channel): void { this.editingRoomId = c.id; this.roomForm = { name: c.name, description: c.description, themeColour: c.themeColour, ageLimit: c.ageLimit }; }
+  resetRoom(): void { this.editingRoomId = ''; this.roomForm = { name: '', description: '', themeColour: '#4da6ff', ageLimit: 0 }; }
+  deleteRoom(c: Channel): void { if (confirm(`Delete room ${c.name}?`)) this.action('DELETE', `/channels/${c.id}`, {}, 'Room deleted.', () => { if (this.room?.id === c.id) this.room = null; }); }
+  promote(): void { this.action('POST', `/groups/${this.selectedId}/admins`, { userId: this.promoteId }, 'Administrator appointed.'); }
+  stepDown(): void { if (confirm('Step down as administrator of this group?')) this.action('DELETE', `/groups/${this.selectedId}/admins/me`, {}, 'Administrator role removed.'); }
+  removeMember(id: string): void { if (confirm(`Remove ${this.username(id)} from this group?`)) this.action('DELETE', `/groups/${this.selectedId}/members/${id}`, {}, 'Membership removed.'); }
+  leaveGroup(): void { this.removeMember(this.state!.user.id); }
+  assignRoom(): void { this.action('POST', `/channels/${this.assignmentRoomId}/members`, { userId: this.assignmentUserId }, 'Room assignment saved.'); }
+  saveProfile(): void { this.action('PATCH', '/profile', this.profileForm, 'Profile saved.'); }
+  createUser(): void { this.action('POST', '/users', this.userForm, 'User created.', () => { this.userForm = { username: '', password: '', firstName: '', lastName: '', email: '', dateOfBirth: '' }; }); }
+  avatar(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 2097152) { this.error = 'Choose a PNG, JPEG or GIF up to 2 MB.'; return; }
+    const reader = new FileReader(); reader.onload = () => this.action('POST', '/profile/avatar', { data: reader.result }, 'Profile image saved.'); reader.readAsDataURL(file);
+  }
+  deleteAccount(): void {
+    if (!confirm('Permanently delete your account? This cannot be undone.')) return;
+    this.api.send('DELETE', '/profile').subscribe({ next: () => { this.auth.currentUser.set(null); void this.router.navigate(['/login']); }, error: e => this.handleError(e) });
+  }
+  signOut(): void { this.auth.logout().subscribe({ next: () => void this.router.navigate(['/login']), error: e => this.handleError(e) }); }
+  openRoom(c: Channel): void {
+    this.error = '';
+    this.api.send('GET', `/channels/${c.id}/preview`).subscribe({ next: () => { this.room = c; this.message = ''; this.chatMessages = ['Welcome to the room.', 'This is a Phase 1 chat preview.', 'Group and room management save to JSON.', 'Live messages and presence come in Phase 2.', 'Say hello to try the local interface.'].map(text => ({ id: this.nextMessage++, author: 'Preview', text, mine: false, time: new Date().toISOString() })); }, error: e => this.handleError(e) });
+  }
+  sendMessage(): void { if (!this.message.trim()) return; this.chatMessages.push({ id: this.nextMessage++, author: this.state!.user.username, text: this.message.trim(), mine: true, time: new Date().toISOString() }); this.message = ''; }
+  deleteMessage(id: number): void { if (confirm('Delete this local preview message?')) this.chatMessages = this.chatMessages.filter(m => m.id !== id); }
+  previewImage(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return; if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 2097152) { this.error = 'Choose a PNG, JPEG or GIF up to 2 MB.'; return; } const reader = new FileReader(); reader.onload = () => this.chatMessages.push({ id: this.nextMessage++, author: this.state!.user.username, text: '', mine: true, image: reader.result as string, time: new Date().toISOString() }); reader.readAsDataURL(file); }
 }

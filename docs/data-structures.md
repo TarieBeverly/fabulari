@@ -1,70 +1,56 @@
-# Fabulari — Proposed Data Structures
+# Fabulari — Implemented Data Structures
 
-## Storage
+The server JSON file contains five arrays. UUIDs identify records. Related objects
+are referenced by IDs rather than copies. All changes use read-modify-write within
+a single Node.js process; writes go to a temporary file then replace the database.
 
-Phase 1 stores application data in a server-side JSON file.
-The file contains arrays of users, groups, channels and requests.
+## User
 
-Each record has a unique ID. Related records reference these IDs
-rather than duplicating complete objects.
-
-## Users
-
-| Field | Purpose |
+| Field | Meaning |
 |---|---|
-| id | Unique user identifier |
-| username | Unique login name |
-| passwordHash | Password hash used for authentication |
-| roles | Array of assigned roles: User, Group Admin, Super Admin |
+| id, username | Unique UUID and case-insensitive unique login |
+| firstName, lastName, email | Profile; email is unique |
+| dateOfBirth | YYYY-MM-DD; age calculated at access time |
+| passwordHash | Random salt and scrypt hash, excluded from API output |
+| roles | User, Group Admin or Super Admin |
+| themeColour | Optional personal group colour override |
+| avatar | Validated PNG/JPEG/GIF data URL, <=2 MB binary size |
 
-Passwords and password hashes must not be returned to the frontend.
+## Group
 
-## Groups
+`id`, `name` (unique, <=30), `description` (<=250), `themeColour` (hex),
+`ageLimit` (0–120), `adminIds`, `memberIds`, `bannedUserIds`.
+The demo fixture additionally has `demoFixture: true`.
+Group Admin is scoped by adminIds. Removing a group recalculates global Group Admin roles.
 
-| Field | Purpose |
-|---|---|
-| id | Unique group identifier |
-| name | Display name |
-| description | Description of the community |
-| themeColour | Group interface colour |
-| ageLimit | Configured age restriction |
-| adminIds | IDs of users who administer this group |
-| memberIds | IDs of users who belong to this group |
-| bannedUserIds | IDs of users banned from this group |
+## Channel
 
-A user's Group Admin role does not grant administration rights
-over every group. The group's adminIds identify its administrators.
+`id`, `groupId`, `name` (unique within group, <=30), `description`, `themeColour`,
+`ageLimit`, `memberIds`. Existing members are assigned when a room is created;
+joining a group assigns the user to its rooms. Access still requires group membership
+and age >= max(group.ageLimit, channel.ageLimit).
 
-## Channels (Chat Rooms)
+## Request
 
-| Field | Purpose |
-|---|---|
-| id | Unique channel identifier |
-| groupId | ID of the group containing the channel |
-| name | Display name |
-| description | Description of the channel |
-| memberIds | IDs of users assigned to the channel |
+`id`, `type`, `requesterId`, `groupId`, `targetId`, `payload`, `reason`, `status`,
+`createdAt`, `reviewedBy`, and optionally `reviewedAt`.
 
-Channel members must also be eligible members of the parent group.
+Types: groupCreation, groupJoin, channelCreation, banUser, groupDeletion, accountDeletion.
+Statuses: pending, approved, rejected, cancelled.
+Creation payload contains name, description, colour and age limit.
+Approval validates current permissions again and executes the change atomically in the
+same synchronous read-modify-write. A resolved request cannot be processed twice.
 
-## Requests
+## AuditLog
 
-| Field | Purpose |
-|---|---|
-| id | Unique request identifier |
-| type | groupCreation, groupDeletion or accountDeletion |
-| requesterId | ID of the user submitting the request |
-| targetId | Existing group or user ID, when applicable |
-| proposedGroup | Proposed group details for a creation request |
-| status | pending, approved or rejected |
-| createdAt | Date and time of submission |
-| reviewedBy | Super Admin ID, initially null |
+`id`, `actorId`, `actorName`, `action`, `targetId`, `groupId`, `createdAt`.
+The latest 100 visible entries are returned to administrators. Historical actor names
+remain readable after deleting an account. The demo seed is explicitly identified.
 
-Request processing may be demonstrated with mock data in Phase 1.
+## Cleanup rules
 
-## Design Decisions to Confirm
-
-- User profile fields needed to enforce age restrictions.
-- Additional membership and request rules from the client briefing.
-- How related records are updated when users, groups or channels
-  are deleted.
+- Group deletion removes its rooms, cancels pending group requests and recalculates roles.
+- User deletion removes membership/admin/ban IDs and room assignments and cancels
+  relevant pending requests. A sole administrator or Super Admin cannot be deleted.
+- Ban removes membership and room assignments, preserving an explicit group ban.
+- Local chat messages are browser-only objects and are never saved in Phase 1 JSON.
