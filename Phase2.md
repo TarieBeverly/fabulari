@@ -4,7 +4,8 @@
 - **Student number:** s5373405
 - **Workshop:** GC Thursday @1100
 - **Repository:** https://github.com/TarieBeverly/fabulari
-- **Branch:** codex/phase2
+- **Submission branch:** main
+- **Phase 2 development branch:** codex/phase2
 - **Phase 1 checkpoint:** 5b7c152
 
 ## Requirements and scope
@@ -72,13 +73,13 @@ Verification completed on 8 October 2026:
   live delivery in both directions, live message deletion, image
   sharing, participant departure updates and logout protection passed.
 
-HTTPS deployment has not been tested.
+Local HTTPS application testing completed: all 14 checks passed, including verified TLS certificates, secure session cookies, production Angular assets, encrypted WebSocket text/images, permission changes and logout. Certificate verification remained enabled. Browser trust/HTTPS walkthrough is a separate check; public hosting has not been tested.
 
 ## Running and remaining checks
 
-See [Phase 2 startup](docs/phase2-startup.md). HTTP localhost is the development default. Optional HTTPS is supported using trusted certificate/key paths and HTTPS Angular options, but the HTTPS deployment has not been exercised. Do not present localhost HTTP testing as verified HTTPS deployment. The teacher/collaborator invitation and LMS submission remain student actions.
+See [Phase 2 startup](docs/phase2-startup.md). HTTP localhost is the development default. The built Angular application can be served with the API and Socket.IO on one HTTPS origin. See the secure startup instructions; npm run test:https verifies the full chat workflow over HTTPS against an isolated MongoDB test database. The teacher/collaborator invitation and LMS submission remain student actions.
 
 ## Dependency and deployment notes
 
-The server and production client dependency audits report zero vulnerabilities. Compatible development-tool fixes were applied. The remaining audit findings concern the Karma development test-tool chain; a forced downgrade was not applied. HTTPS configuration is provided but still needs trusted certificates and a deployment check. The production build and browser walkthrough passed on 8 October 2026.
-HTTPS deployment remains untested.
+The server and production client dependency audits report zero vulnerabilities. Compatible development-tool fixes were applied. The remaining audit findings concern the Karma development test-tool chain; a forced downgrade was not applied. HTTPS startup is implemented and automated local deployment checks pass. Browser use requires trusting the local certificate or supplying a certificate already trusted by the browser. The production build and browser walkthrough passed on 8 October 2026.
+Local HTTPS deployment passed automated testing on 8 October 2026; browser verification and public hosting are distinct from these automated checks.

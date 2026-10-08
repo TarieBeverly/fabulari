@@ -16,6 +16,20 @@ Use two separate browser profiles or a private window, so session cookies belong
 
 Run `npm run build` in client and `npm test` plus `npm run test:mongo` in server. Commit and push Phase 2 after these checks. Keep the Phase 1 PDF/source snapshot separate from Phase 2 code.
 
-## Optional HTTPS configuration
+## Local HTTPS deployment
 
-Use an existing trusted localhost certificate; no trust-store changes are performed by the application. Set FRONTEND_ORIGIN=https://localhost:4200, TLS_KEY_PATH and TLS_CERT_PATH in server/.env. Start Angular using `npm start -- --ssl --ssl-key <key-path> --ssl-cert <cert-path>`. Open https://localhost:4200. The frontend follows the page's protocol for HTTP APIs and socket connections. Verify both certificates and secure cookies before claiming HTTPS deployment tested.
+The production Angular build, API, images and Socket.IO share https://localhost:3443. Port 3443 keeps the existing HTTP development servers separate.
+
+1. At the project root, run `npm --prefix client run build`.
+2. In server, run `npm run cert:local` once. OpenSSL is required (Git for Windows includes it); OPENSSL_PATH can specify another installed executable. This creates a 30-day certificate valid only for localhost/127.0.0.1 in server/.certs, and does not change Windows trust. An existing key is never overwritten.
+3. Copy server/.env.https.example to server/.env.https. Set MongoDB settings for your replica set if needed.
+4. Supply a certificate trusted by your browser. For the generated local certificate, explicitly approve trusting server/.certs/localhost.cer in your own Windows account. Never bypass a browser certificate warning or disable certificate validation. The local certificate can be removed from your account's trusted certificates when this project is finished.
+5. With MongoDB running, run `npm run start:https` in server. Open https://localhost:3443/login. Angular ng serve is not needed for this deployment.
+
+Keep .env.https, server/.certs and private keys out of Git. Each machine generates its own certificate. The 30-day certificate is for local development, not public hosting; a public deployment needs a certificate for its actual domain.
+
+## HTTPS verification
+
+Run `npm run test:https` in server after building the client, with MongoDB running. All 14 checks passed on 8 October 2026. The tests use a unique test database and temporary uploads/certificate directory, remove their own data, and never modify the application database or Windows trust.
+
+Checks verify rejection of an untrusted certificate, TLS 1.2 or later, the production Angular page/assets, Secure login cookies, certificate-verified WSS chat, images, presence, five-message persistence, deletions, live permission changes and logout. Certificate validation stays enabled throughout. The original HTTP integration suite still passes all 12 checks.

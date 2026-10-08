@@ -1,3 +1,7 @@
+## Tested local HTTPS
+
+See [HTTPS startup and verification](docs/phase2-startup.md#local-https-deployment). Build the client, configure server/.env.https with a trusted localhost certificate, and run `npm run start:https` in server. Open https://localhost:3443. Run `npm run test:https` to repeat the 14 passing secure transport and chat checks. Local private keys and database files are excluded from Git.
+
 # Fabulari
 
 The active codex/phase2 branch uses Angular, Express, MongoDB and Socket.IO. Start with [Phase 2 startup](docs/phase2-startup.md) and [Phase 2 report](Phase2.md).

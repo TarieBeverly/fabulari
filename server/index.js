@@ -7,6 +7,7 @@ const apiRoutes = require('./api');
 const app = express();
 const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:4200';
 const tls = !!(process.env.TLS_KEY_PATH && process.env.TLS_CERT_PATH);
+if (!!process.env.TLS_KEY_PATH !== !!process.env.TLS_CERT_PATH) throw new Error('HTTPS requires both TLS_KEY_PATH and TLS_CERT_PATH.');
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 // The local Angular client sends credentialed JSON; reject other browser origins.
 app.use((req, res, next) => {
@@ -20,6 +21,18 @@ app.get('/api/health', (req, res) => res.json({ message: 'Fabulari server is run
 app.use('/api', require('./storage').serializeRequests);
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
+// The built Angular app can share the HTTPS origin with its APIs and sockets.
+if (process.env.SERVE_CLIENT === 'true') {
+  if (!tls) throw new Error('SERVE_CLIENT requires HTTPS certificates.');
+  const path = require('node:path');
+  const directory = path.resolve(__dirname, '../client/dist/fabulari-client/browser');
+  if (!require('node:fs').existsSync(path.join(directory, 'index.html'))) throw new Error('Build the Angular client before starting HTTPS.');
+  app.use(express.static(directory));
+  app.get('/{*route}', (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) return next();
+    res.sendFile(path.join(directory, 'index.html'));
+  });
+}
 app.use((req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 app.use((error, req, res, next) => {
   if (!error.status) console.error(error);
@@ -27,8 +40,7 @@ app.use((error, req, res, next) => {
 });
 if (require.main === module) {
   const port = process.env.PORT || 3000;
-  const fs = require('node:fs');
-  const server = tls ? require('node:https').createServer({ key: fs.readFileSync(process.env.TLS_KEY_PATH), cert: fs.readFileSync(process.env.TLS_CERT_PATH) }, app) : require('node:http').createServer(app);
+  const server = createServer();
   require('./chat').attachChat(server, sessionMiddleware);
   server.listen(port, '127.0.0.1', () => console.log(`Fabulari server: ${tls ? 'https' : 'http'}://localhost:${port} (${require('./storage').jsonMode ? 'JSON compatibility' : 'MongoDB'})`));
   server.on('error', error => { console.error(error.message); process.exitCode = 1; });
@@ -36,3 +48,13 @@ if (require.main === module) {
 module.exports = app;
 
 module.exports.sessionMiddleware = sessionMiddleware;
+
+function createServer() {
+  if (!tls) return require('node:http').createServer(app);
+  const fs = require('node:fs');
+  return require('node:https').createServer({
+    key: fs.readFileSync(process.env.TLS_KEY_PATH),
+    cert: fs.readFileSync(process.env.TLS_CERT_PATH), minVersion: 'TLSv1.2'
+  }, app);
+}
+module.exports.createServer = createServer;

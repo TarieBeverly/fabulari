@@ -22,3 +22,7 @@ server/.mongo/
 
 # Uploaded profile and chat images
 server/uploads/
+
+# Local TLS private keys and certificates
+server/.certs/
+!.env.https.example
