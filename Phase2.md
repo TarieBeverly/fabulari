@@ -1,4 +1,4 @@
-# Fabulari — Phase 2
+# Fabulari ï¿½ Phase 2
 
 - **Name:** Tariro Kandeya
 - **Student number:** s5373405
@@ -15,7 +15,10 @@ Members can send plain text and PNG/JPEG/GIF images up to 2 MB, see active room 
 
 ## Architecture and MongoDB
 
-Angular 20 uses AuthService/ApiService for HTTP and ChatService for socket communication. Express handles authentication and approved administration. The existing salted scrypt password hashes and UUID references are retained during migration. MongoDB collections are users, groups, channels, requests, logs and roomHistory. Administrative collections have unique id indexes; roomHistory uses the channel UUID as its MongoDB _id and stores at most five message objects. Images are base64 data URLs inside retained message objects; at most five 2 MB images fit below the MongoDB document limit.
+Angular 20 uses AuthService/ApiService for HTTP and ChatService for socket communication. Express handles authentication and approved administration. The existing salted scrypt password hashes and UUID references are retained during migration. MongoDB collections are users, groups, channels, requests, logs and roomHistory. Administrative collections have unique id indexes; roomHistory uses the channel UUID as its MongoDB _id and stores at most five message objects. Profile and chat images are stored in server/uploads. MongoDB's media
+collection stores their metadata, and messages reference authenticated
+/api/media/:mediaId URLs. Messages also record the author's profile-picture
+URL. Only the latest five messages per room are retained in MongoDB.
 
 Administrative writes run in a MongoDB transaction. A shared queue serializes HTTP and socket mutations in this single server process to prevent overlapping snapshot updates. This design is intended for the assignment's single server; multiple workers would need distributed concurrency control. Sessions remain in express-session's memory store and expire after one hour or a restart. Production deployment would need a persistent session store.
 
@@ -59,7 +62,17 @@ The original [wireframes](docs/design/wireframes.md) and [storyboard](docs/desig
 | Logout disconnects the existing socket | Integration test passes |
 | Changed age limits, account deletion message cleanup, room-history deletion | Integration test passes |
 
-Run `npm test` in server for isolated JSON compatibility/regression tests. With MongoDB running, run `npm run test:mongo` for real MongoDB and socket tests; it uses a randomly named test database and deletes only that test database on completion. The Angular compiler is checked separately. Final production build and browser walkthrough results must be recorded after checking the updated Phase 2 client.
+Verification completed on 8 October 2026:
+
+- Phase 1 regression tests: 8 passed.
+- MongoDB and Socket.IO integration tests: 12 passed.
+- Angular client tests: 7 passed.
+- Production build: passed, with a dashboard CSS size warning.
+- Browser checks with demo and groupadmin accounts: shared text,
+  live delivery in both directions, live message deletion, image
+  sharing, participant departure updates and logout protection passed.
+
+HTTPS deployment has not been tested.
 
 ## Running and remaining checks
 
@@ -67,4 +80,5 @@ See [Phase 2 startup](docs/phase2-startup.md). HTTP localhost is the development
 
 ## Dependency and deployment notes
 
-The server and production client dependency audits report zero vulnerabilities. Compatible development-tool fixes were applied. The remaining audit findings concern the Karma development test-tool chain; a forced downgrade was not applied. HTTPS configuration is provided but still needs trusted certificates and a deployment check. Browser walkthrough and updated production bundling are final checks, not inferred from passing server tests.
+The server and production client dependency audits report zero vulnerabilities. Compatible development-tool fixes were applied. The remaining audit findings concern the Karma development test-tool chain; a forced downgrade was not applied. HTTPS configuration is provided but still needs trusted certificates and a deployment check. The production build and browser walkthrough passed on 8 October 2026.
+HTTPS deployment remains untested.
